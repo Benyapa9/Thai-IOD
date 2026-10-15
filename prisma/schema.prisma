@@ -1,0 +1,367 @@
+// IOD Finance Portal — Azure SQL Database (SQL Server)
+// Source of truth: Doc/PROJECT_PROMPT.md (Database Schema)
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id          String   @id @default(cuid())
+  entraId     String   @unique // Azure AD Object ID
+  email       String   @unique
+  name        String
+  role        String   @default("basic") // legacy level, kept for backward compatibility
+  tierId      String? // access tier (basic | standard | advanced | it); null → derived from role
+  tier        Tier?    @relation(fields: [tierId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  permVersion Int      @default(1) // bumped on tier/status change → sessions refresh
+  department  String?
+  departments String?  @db.NVarChar(Max) // JSON string[] of viewable departments; null = all (MOM A5)
+  jobTitle    String?
+  image       String?  @db.NVarChar(Max) // Microsoft profile photo (data URL), only with consent
+  consent     String?  @db.NVarChar(Max) // JSON ProfileConsent (MOM A7)
+  tourSeen    String?  @db.NVarChar(Max) // JSON { tourId: version } — product tours seen
+  theme       String   @default("navy")
+  locale      String   @default("th")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Upload {
+  id           String            @id @default(cuid())
+  filename     String
+  originalName String
+  blobUrl      String
+  sizeBytes    Int
+  uploadedBy   String // User.id
+  processedAt  DateTime?
+  records      FinancialRecord[]
+  createdAt    DateTime          @default(now())
+}
+
+model FinancialRecord {
+  id         String   @id @default(cuid())
+  period     String // "2026-01" or "2026-Q1"
+  periodType String // "monthly" | "quarterly" | "annual"
+  category   String // "training" | "membership" | "sponsorship" | "corporate"
+  type       String // "revenue" | "expense" | "budget"
+  amount     Float
+  currency   String   @default("THB")
+  uploadId   String
+  upload     Upload   @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@index([period, category, type])
+}
+
+model IssueLog {
+  id              String    @id @default(cuid())
+  title           String
+  description     String?   @db.NVarChar(Max)
+  severity        String // "critical" | "high" | "medium" | "low"
+  category        String // "budget" | "revenue" | "compliance" | "system" | "other"
+  status          String    @default("open") // open | in_progress | resolved | closed
+  reporter        String // User.id
+  ownerId         String? // User.id
+  dueDate         DateTime?
+  resolvedAt      DateTime?
+  // Follow-up action detail (MOM F2)
+  plan            String?   @db.NVarChar(Max)
+  approach        String?   @db.NVarChar(Max)
+  outcome         String?   @db.NVarChar(Max)
+  outcomeResult   String    @default("pending") // pending | improved | not_improved
+  sourceInsightId String?
+  metricLabel     String?
+  baselineValue   Float?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Commentary {
+  id        String   @id @default(cuid())
+  period    String   @unique // "2026-08"
+  content   String   @db.NVarChar(Max)
+  authorId  String // User.id
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Threshold per dashboard page (MOM D10)
+model AlertThreshold {
+  id        String   @id @default(cuid())
+  dashboard String // kpi | training | expenditure | membership | pnl | capital
+  metric    String
+  threshold Float
+  operator  String // "gt" | "lt"
+  isActive  Boolean  @default(true)
+  updatedBy String? // User.id
+  updatedAt DateTime @updatedAt
+
+  @@unique([dashboard, metric])
+}
+
+model Scenario {
+  id          String   @id @default(cuid())
+  name        String
+  levers      String   @db.NVarChar(Max) // JSON string
+  projections String   @db.NVarChar(Max) // JSON string
+  savedBy     String // User.id
+  createdAt   DateTime @default(now())
+}
+
+/// System feedback: issue | new_request | insight_request | page_feedback (MOM F3, D1, I7, I8)
+model Feedback {
+  id        String   @id @default(cuid())
+  type      String
+  title     String
+  detail    String?  @db.NVarChar(Max)
+  page      String?
+  rating    String? // helpful | not_helpful
+  status    String   @default("open") // open | in_review | done
+  createdBy String // User.id
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+}
+
+/// Private note to self — only the author can read it; shown on Home as a reminder
+model PersonalNote {
+  id        String   @id @default(cuid())
+  userId    String // User.id (owner; every query filters by it)
+  content   String   @db.NVarChar(1000)
+  dueDate   String? // yyyy-mm-dd, optional
+  done      Boolean  @default(false)
+  page      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, done, createdAt])
+}
+
+/// Like / dislike on an insight (MOM H3)
+model InsightRating {
+  id         String   @id @default(cuid())
+  userId     String
+  insightKey String
+  kind       String
+  rating     Int // 1 | -1
+  /// Optional quick reason (lib/rating-reasons.ts) and free-text comment from the follow-up popup
+  reason     String?  @db.NVarChar(60)
+  comment    String?  @db.NVarChar(1000)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, insightKey])
+}
+
+/// Page view for My Usage Log (MOM F4)
+model UsageEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  path      String
+  section   String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Source-system datasets (Power BI dashboard parity). Each upload
+// of a given file type replaces the matching slice of its table.
+// ─────────────────────────────────────────────────────────────
+
+/// GL transaction detail (Actual_YYYYMM_*.xlsx, Sage GLTDOPT report)
+model GlTransaction {
+  id          String    @id @default(cuid())
+  year        Int
+  month       Int
+  period      String // "2026-08"
+  accountCode String
+  accountName String
+  postingDate DateTime?
+  budgetCode  String?
+  debit       Float
+  credit      Float
+  createdAt   DateTime  @default(now())
+
+  @@index([period])
+  @@index([budgetCode])
+}
+
+/// Annual budget register (BG_YEAR_*.xlsx) — one row per budget code
+model BudgetLine {
+  id             String    @id @default(cuid())
+  year           Int
+  budgetCode     String
+  name           String
+  department     String?
+  profitCenter   String?
+  budgetGroup    String?
+  budgetType     String? // งบดำเนินงาน | งบลงทุน | งบโครงการพิเศษ | งบบุคลากร
+  revenueType    String? // → PnlLine.key
+  expenseType    String? // → PnlLine.key
+  activity       String?
+  courseCode     String?
+  className      String?
+  seat           Float?
+  status         String?
+  isCapital      Boolean   @default(false)
+  revenueMonthly String    @db.NVarChar(Max) // JSON number[12]
+  expenseMonthly String    @db.NVarChar(Max) // JSON number[12]
+  startDate      DateTime?
+  endDate        DateTime?
+
+  @@unique([year, budgetCode])
+}
+
+/// Budget vs actual per project (BG_Capital_*.xlsx) — cumulative, as of `asOf`
+model BudgetProgress {
+  id            String    @id @default(cuid())
+  budgetCode    String    @unique
+  name          String
+  department    String?
+  profitCenter  String?
+  courseCode    String?
+  className     String?
+  seat          Float?
+  revenuePlan   Float
+  budgetCost    Float
+  expenseUsed   Float
+  balanceCost   Float
+  expenseActual Float
+  startDate     DateTime?
+  endDate       DateTime?
+  asOf          String // "2026-08"
+}
+
+/// Revenue account → training course (Master_*.xlsx)
+model AccountMap {
+  id           String @id @default(cuid())
+  accountCode  String
+  courseCode   String
+  grouping     String
+  trainingName String
+
+  @@unique([accountCode, courseCode])
+}
+
+/// P&L structure (Master Revenue & Expense_*.xlsx)
+model PnlLine {
+  id     String  @id @default(cuid())
+  sort1  Int
+  sort2  Int?
+  sort3  Int?
+  level1 String?
+  level2 String?
+  level3 String?
+  key    String? // desc — matches BudgetLine.revenueType / expenseType
+}
+
+/// Department master (Dept_Master_*.xlsx)
+model Department {
+  code       String  @id
+  name       String
+  sort       Int
+  mergedInto String?
+}
+
+/// Member counts and plans (Template Member_*.xlsx)
+model MemberStat {
+  id         String @id @default(cuid())
+  memberType String // Actual | Plan Renew | Plan Member New
+  year       Int
+  month      Int
+  value      Float
+
+  @@unique([memberType, year, month])
+}
+
+/// Aggregated activity registrations (Event / Member / Sponsor CSV).
+/// Counts only — attendee names are never stored.
+model ActivityStat {
+  id            String  @id @default(cuid())
+  source        String // event | member | sponsor
+  period        String
+  department    String?
+  program       String
+  eventName     String
+  memberType    String? // member source: one row per member type
+  registrations Int
+  attended      Int
+  participants  Int // distinct attendee names within the event
+  companies     Int
+  companyKeys   String  @db.NVarChar(Max) // JSON: hashed company names (distinct sponsor count)
+  amount        Float
+  newMembers    Int
+  renewMembers  Int
+
+  @@index([source, period])
+}
+
+// ── Dynamic access (Tier × Feature matrix, edited on /admin/tiers) ──────────
+
+/**
+ * Something a user can do, e.g. "upload.create". Synced from src/lib/access/catalog.ts.
+ */
+model Feature {
+  id        String        @id @default(cuid())
+  key       String        @unique
+  name      String
+  groupKey  String
+  route     String?
+  sortOrder Int           @default(0)
+  grants    TierFeature[]
+}
+
+/**
+ * Basic → Standard → Advanced → IT; each inherits from the previous one.
+ */
+model Tier {
+  id             String        @id // basic | standard | advanced | it
+  name           String
+  level          Int           @unique
+  inheritsFromId String?
+  inheritsFrom   Tier?         @relation("TierInheritance", fields: [inheritsFromId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children       Tier[]        @relation("TierInheritance")
+  grants         TierFeature[]
+  users          User[]
+}
+
+/**
+ * Explicit grant on a tier: "allow" or "deny" (no enums on sqlserver). Missing = inherit.
+ */
+model TierFeature {
+  tierId    String
+  featureId String
+  effect    String // "allow" | "deny"
+  tier      Tier    @relation(fields: [tierId], references: [id], onDelete: Cascade)
+  feature   Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@id([tierId, featureId])
+}
+
+/**
+ * Who changed the matrix or a user's tier, with JSON before/after.
+ */
+model AccessAuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  action    String // "matrix.update" | "users.update"
+  before    String   @db.NVarChar(Max)
+  after     String   @db.NVarChar(Max)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/**
+ * Single row (id "global"): bumped on every matrix change so sessions refresh.
+ */
+model AccessState {
+  id      String @id @default("global")
+  version Int    @default(1)
+}

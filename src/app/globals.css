@@ -1,0 +1,521 @@
+@import "tailwindcss";
+
+/*
+ * IOD Finance Intelligence — Navy / Gray / White (default) plus selectable themes
+ * (MOM G4). --color-accent is the logo red.
+ */
+@theme {
+  --color-navy-50: #f3f6fb;
+  --color-navy-100: #e6edf6;
+  --color-navy-200: #cbd8ea;
+  --color-navy-300: #a3bad8;
+  --color-navy-400: #7392bd;
+  --color-navy-500: #4f71a1;
+  --color-navy-600: #3a5985;
+  --color-navy-700: #2c466c;
+  --color-navy-800: #1d3354;
+  --color-navy-900: #132642;
+  --color-navy-950: #0b1a30;
+
+  --color-background: #f5f7fb;
+  --color-foreground: #1c2433;
+  --color-card: #ffffff;
+  --color-border: #dfe3ea;
+  --color-muted: #eef0f4;
+  --color-muted-foreground: #667085;
+  --color-primary: var(--color-navy-900);
+  --color-primary-foreground: #ffffff;
+  --color-ring: var(--color-navy-500);
+
+  --color-danger: #b42318;
+  --color-danger-soft: #fdecea;
+  --color-warning: #a15c07;
+  --color-warning-soft: #fdf3e2;
+  --color-success: #17714a;
+  --color-success-soft: #e5f4ec;
+  --color-accent: #c0262d;
+  /* Logo red that stays readable on navy / dark backgrounds (hero, sidebar). */
+  --color-accent-light: #ff6b72;
+
+  --font-sans: var(--font-plex-thai), "Tahoma", system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    color-scheme: light;
+  }
+  /*
+   * Desktop density: at 100% browser zoom (often on 125–150% Windows scaling) the UI
+   * looked oversized. Every Tailwind size is rem-based, so this scales text, spacing
+   * and boxes together. Phones keep 16px.
+   */
+  @media (min-width: 1024px) {
+    html {
+      font-size: 87.5%;
+    }
+  }
+  body {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    /* Thai script needs more room for vowels and tone marks. */
+    line-height: 1.6;
+  }
+  h1,
+  h2,
+  h3 {
+    line-height: 1.35;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+  input[type="range"] {
+    accent-color: var(--color-navy-800);
+  }
+}
+
+/*
+ * Colour themes (MOM G4): the whole UI is built on the navy-* scale, so a theme
+ * swaps that scale in one place — every page changes at once.
+ */
+[data-theme="teal"] {
+  --color-navy-50: #effafa; --color-navy-100: #d7f0ef; --color-navy-200: #b0e0de; --color-navy-300: #7cc8c5;
+  --color-navy-400: #46aaa7; --color-navy-500: #2a8c8a; --color-navy-600: #217070; --color-navy-700: #1d5a5b;
+  --color-navy-800: #1a494a; --color-navy-900: #143a3b; --color-navy-950: #0b2526;
+}
+[data-theme="burgundy"] {
+  --color-navy-50: #fbf3f4; --color-navy-100: #f5e2e4; --color-navy-200: #eac2c7; --color-navy-300: #d996a0;
+  --color-navy-400: #c26473; --color-navy-500: #a8434f; --color-navy-600: #8e3340; --color-navy-700: #762a36;
+  --color-navy-800: #62242f; --color-navy-900: #4f1e27; --color-navy-950: #2f0f15;
+}
+[data-theme="forest"] {
+  --color-navy-50: #f2f8f4; --color-navy-100: #ddeee3; --color-navy-200: #bcdcc8; --color-navy-300: #8fc3a4;
+  --color-navy-400: #5ea47c; --color-navy-500: #3f875f; --color-navy-600: #2f6c4b; --color-navy-700: #27573e;
+  --color-navy-800: #224634; --color-navy-900: #1c392b; --color-navy-950: #0f2018;
+}
+[data-theme="graphite"] {
+  --color-navy-50: #f5f6f7; --color-navy-100: #e8eaed; --color-navy-200: #d1d5db; --color-navy-300: #aab1bc;
+  --color-navy-400: #7d8796; --color-navy-500: #5f6978; --color-navy-600: #4b5462; --color-navy-700: #3e4550;
+  --color-navy-800: #353a43; --color-navy-900: #2b2f36; --color-navy-950: #18191d;
+}
+
+/* "This number comes from here" highlight when arriving from an Insight link (MOM I6). */
+@keyframes focus-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-accent) 35%, transparent);
+  }
+}
+.focus-target {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+  animation: focus-pulse 1.4s ease-in-out 3;
+}
+
+.print-only {
+  display: none;
+}
+
+/* ── Modern look: soft gradients built on the theme scale (works for every theme) ── */
+
+/* Page background: two soft blobs in the theme colour behind the content. */
+body {
+  background:
+    radial-gradient(1100px 560px at 105% -8%, color-mix(in srgb, var(--color-navy-200) 55%, transparent), transparent 62%),
+    radial-gradient(900px 520px at -12% 108%, color-mix(in srgb, var(--color-navy-300) 28%, transparent), transparent 60%),
+    var(--color-background);
+  background-attachment: fixed;
+}
+
+/*
+ * Theme-tone gradient frame. Drawn as a masked ring on ::before so the element
+ * keeps its own background (e.g. red/green status cards). In the components
+ * layer so utilities like `fixed` still win over `position: relative`.
+ */
+@layer components {
+  .gradient-border {
+    position: relative;
+    border-color: transparent;
+  }
+  .gradient-border::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, var(--color-navy-300), var(--color-navy-100) 45%, var(--color-navy-100) 60%, var(--color-navy-200));
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box exclude,
+      linear-gradient(#000 0 0);
+    pointer-events: none;
+  }
+}
+
+/* Gradient text in the theme tone. */
+.text-gradient {
+  background: linear-gradient(100deg, var(--color-navy-950), var(--color-navy-600) 70%, var(--color-navy-400));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Slowly drifting gradient for hero banners (theme tone). */
+.hero-mesh {
+  background: linear-gradient(120deg, var(--color-navy-950), var(--color-navy-800) 38%, var(--color-navy-600) 72%, var(--color-navy-500));
+  background-size: 220% 220%;
+  animation: mesh-shift 16s ease-in-out infinite;
+}
+@keyframes mesh-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Floating glow blobs inside a hero. */
+.blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(40px);
+  opacity: 0.55;
+  animation: blob-float 12s ease-in-out infinite;
+}
+@keyframes blob-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-18px, 14px) scale(1.08);
+  }
+}
+
+/* Subtle lift on hover for clickable cards. */
+.lift {
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+.lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 28px -14px rgba(16, 24, 40, 0.28);
+}
+
+/* ── Product tour (components/tour/tour-player.tsx) — theme tokens, light + dark ── */
+.tour-hole {
+  box-shadow: 0 0 0 9999px color-mix(in srgb, var(--color-navy-950) 62%, transparent);
+}
+.tour-dim {
+  background: color-mix(in srgb, var(--color-navy-950) 62%, transparent);
+}
+.tour-card {
+  background: var(--color-card);
+  color: var(--color-foreground);
+  border: 1px solid var(--color-navy-100);
+}
+.tour-card .tour-title {
+  color: var(--color-navy-950);
+}
+.tour-card .tour-body {
+  color: var(--color-navy-800);
+}
+.tour-card .tour-meta {
+  color: var(--color-navy-600);
+}
+.tour-card .tour-dot {
+  background: var(--color-navy-100);
+}
+.tour-card .tour-dot-on {
+  background: var(--color-navy-600);
+}
+.tour-card .tour-btn-primary {
+  color: #fff;
+  background: linear-gradient(90deg, var(--color-navy-900), var(--color-navy-700));
+}
+.tour-card .tour-btn-secondary {
+  color: var(--color-navy-900);
+  border: 1px solid var(--color-navy-200);
+  background: #fff;
+}
+.tour-card .tour-btn-ghost {
+  color: var(--color-navy-700);
+}
+.tour-card .tour-btn-ghost:hover,
+.tour-card .tour-btn-secondary:hover:not(:disabled) {
+  background: var(--color-navy-50);
+}
+.tour-card :focus-visible {
+  outline: 2px solid var(--color-navy-500);
+  outline-offset: 2px;
+}
+@media (prefers-color-scheme: dark) {
+  .tour-card {
+    background: var(--color-navy-950);
+    color: #f3f6fb;
+    border-color: var(--color-navy-700);
+  }
+  .tour-card .tour-title {
+    color: #ffffff;
+  }
+  .tour-card .tour-body {
+    color: var(--color-navy-100);
+  }
+  .tour-card .tour-meta {
+    color: var(--color-navy-200);
+  }
+  .tour-card .tour-dot {
+    background: var(--color-navy-800);
+  }
+  .tour-card .tour-dot-on {
+    background: var(--color-navy-300);
+  }
+  .tour-card .tour-btn-primary {
+    color: var(--color-navy-950);
+    background: linear-gradient(90deg, #ffffff, var(--color-navy-100));
+  }
+  .tour-card .tour-btn-secondary {
+    color: #ffffff;
+    border-color: var(--color-navy-600);
+    background: transparent;
+  }
+  .tour-card .tour-btn-ghost {
+    color: var(--color-navy-100);
+  }
+  .tour-card .tour-btn-ghost:hover,
+  .tour-card .tour-btn-secondary:hover:not(:disabled) {
+    background: var(--color-navy-800);
+  }
+}
+
+/* Scroll reveal (see components/ui/reveal.tsx). */
+.reveal {
+  opacity: 0;
+  transition:
+    opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+.reveal-up {
+  transform: translateY(28px);
+}
+.reveal-zoom {
+  transform: translateY(16px) scale(0.95);
+}
+.reveal-left {
+  transform: translateX(-28px);
+}
+.reveal-right {
+  transform: translateX(28px);
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .hero-mesh,
+  .blob {
+    animation: none;
+  }
+}
+
+/* Expanded dashboard panel (MOM D5): charts and tables use the full screen. */
+.panel-expanded .chart-box {
+  height: calc(100vh - 170px) !important;
+  min-height: 320px;
+}
+.panel-expanded .table-box {
+  max-height: none !important;
+}
+
+/* Export report (MOM D4): A4 landscape, no navigation, report header shown. */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  body {
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  .print-avoid {
+    break-inside: avoid;
+  }
+}
+
+/* ── Chart neutrals (switch with day / night mode) ── */
+:root {
+  --chart-grid: #e4e7ec;
+  --chart-axis: #667085;
+  --chart-line-from: var(--color-navy-400);
+  --chart-line-to: var(--color-navy-900);
+  --chart-dot: var(--color-navy-800);
+}
+
+/*
+ * Custom colour theme: the user picks one base colour ("+" in the theme row);
+ * the whole navy-* scale is mixed from it, so every page follows.
+ */
+[data-theme="custom"] {
+  --theme-base: #132642;
+  --color-navy-50: color-mix(in oklab, var(--theme-base) 6%, white);
+  --color-navy-100: color-mix(in oklab, var(--theme-base) 12%, white);
+  --color-navy-200: color-mix(in oklab, var(--theme-base) 25%, white);
+  --color-navy-300: color-mix(in oklab, var(--theme-base) 42%, white);
+  --color-navy-400: color-mix(in oklab, var(--theme-base) 62%, white);
+  --color-navy-500: color-mix(in oklab, var(--theme-base) 82%, white);
+  --color-navy-600: var(--theme-base);
+  --color-navy-700: color-mix(in oklab, var(--theme-base) 85%, black);
+  --color-navy-800: color-mix(in oklab, var(--theme-base) 70%, black);
+  --color-navy-900: color-mix(in oklab, var(--theme-base) 56%, black);
+  --color-navy-950: color-mix(in oklab, var(--theme-base) 38%, black);
+}
+
+/*
+ * Night mode (toggle next to the profile). Components are built for light
+ * surfaces, so this layer remaps surface tokens and the common light utilities.
+ * It is unlayered on purpose: it must win over Tailwind's utilities layer.
+ */
+[data-mode="dark"] {
+  color-scheme: dark;
+  --color-background: #0c121e;
+  --color-foreground: #e4e9f2;
+  --color-card: #141c2b;
+  --color-border: #283247;
+  --color-muted: #1b2436;
+  --color-muted-foreground: #9aa5b8;
+  --color-danger: #f97066;
+  --color-danger-soft: #3b1618;
+  --color-warning: #f5b544;
+  --color-warning-soft: #392a12;
+  --color-success: #4cc98a;
+  --color-success-soft: #112b20;
+  --chart-grid: #263044;
+  --chart-axis: #9aa5b8;
+  --chart-line-from: var(--color-navy-400);
+  --chart-line-to: var(--color-navy-100);
+  --chart-dot: var(--color-navy-200);
+  --dm-surface: #141c2b;
+  --dm-tint: color-mix(in srgb, var(--color-navy-400) 14%, transparent);
+  --dm-tint-strong: color-mix(in srgb, var(--color-navy-400) 24%, transparent);
+}
+[data-mode="dark"] body {
+  background:
+    radial-gradient(1100px 560px at 105% -8%, color-mix(in srgb, var(--color-navy-700) 35%, transparent), transparent 62%),
+    var(--color-background);
+}
+/* Light surfaces → dark card */
+[data-mode="dark"] :is(.bg-white, [class~="bg-white/70"], [class~="bg-white/80"], [class~="bg-white/90"]) {
+  background-color: var(--dm-surface);
+}
+[data-mode="dark"] header[class~="bg-white/70"] {
+  background-color: color-mix(in srgb, var(--dm-surface) 80%, transparent);
+  border-color: var(--color-border);
+}
+/* Light tints → translucent theme tint */
+[data-mode="dark"] :is(.bg-navy-50, [class~="bg-navy-50/40"], .bg-muted, [class~="bg-muted/70"], .bg-sky-50, .bg-amber-50, [class~="bg-white/40"], [class~="bg-white/55"], [class~="bg-white/60"]) {
+  background-color: var(--dm-tint);
+}
+[data-mode="dark"] :is(.bg-navy-100, .bg-sky-100, .bg-amber-100) {
+  background-color: var(--dm-tint-strong);
+}
+[data-mode="dark"] :is([class~="hover:bg-navy-50"], [class~="hover:bg-navy-50/60"], [class~="hover:bg-muted"], [class~="hover:bg-amber-100"]):hover {
+  background-color: var(--dm-tint-strong);
+}
+/* Gradients that start or end on a light colour */
+[data-mode="dark"] :is(.from-navy-50, .from-navy-100, [class~="from-navy-100/80"], .from-rose-50, .from-emerald-50, .from-amber-50) {
+  --tw-gradient-from: var(--dm-tint-strong);
+}
+[data-mode="dark"] :is(.via-navy-50, .via-white) {
+  --tw-gradient-via: var(--dm-tint);
+}
+[data-mode="dark"] :is(.to-white, .to-navy-100, .to-red-100, .to-green-100) {
+  --tw-gradient-to: var(--dm-surface);
+}
+/* Dark text on light → light text */
+[data-mode="dark"] :is(.text-navy-950, .text-navy-900) {
+  color: #e8edf6;
+}
+[data-mode="dark"] :is(.text-navy-800, .text-amber-800, .text-sky-800) {
+  color: #cdd7e8;
+}
+[data-mode="dark"] :is(.text-navy-700, .text-navy-600, .text-amber-700, .text-sky-700) {
+  color: #aebcd4;
+}
+[data-mode="dark"] .text-navy-500 {
+  color: #8fa2c2;
+}
+[data-mode="dark"] :is([class~="hover:text-navy-900"], [class~="hover:text-navy-700"]):hover {
+  color: #ffffff;
+}
+/* Borders */
+[data-mode="dark"] :is(.border-navy-100, .border-navy-200, .border-amber-200, .border-sky-200, .border-amber-300) {
+  border-color: var(--color-border);
+}
+[data-mode="dark"] .gradient-border::before {
+  background: linear-gradient(135deg, var(--color-navy-600), var(--color-border) 45%, var(--color-border) 60%, var(--color-navy-700));
+}
+[data-mode="dark"] .text-gradient {
+  background-image: linear-gradient(100deg, #ffffff, var(--color-navy-200) 70%, var(--color-navy-300));
+}
+/* Recharts default tooltip */
+[data-mode="dark"] .recharts-default-tooltip {
+  background-color: var(--dm-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* Global loading bar (components/layout/loading-indicator.tsx). */
+@keyframes loading-slide {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+.loading-bar {
+  animation: loading-slide 1.1s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-bar {
+    width: 100%;
+    animation: none;
+    opacity: 0.7;
+  }
+}

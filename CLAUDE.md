@@ -1,3 +1,5 @@
+@AGENTS.md
+
 You are a senior full-stack developer building the **IOD Finance Portal** —
 a financial dashboard web application for Thai Institute of Directors (Thai IOD),
 developed and hosted by ZyGen Co., Ltd. (ZyGen BAAI Team).

@@ -40,6 +40,20 @@
 | `/scenario` | Scenario Planning |
 | `/settings` | Settings |
 
+## เริ่มต้นใช้งาน (Local Dev)
+
+```bash
+npm install
+npx prisma generate
+cp .env.example .env.local   # ตั้งค่า NEXTAUTH_SECRET และ AUTH_DEMO_LOGIN="true"
+npm run dev                  # http://localhost:3100
+```
+
+- ถ้าไม่ตั้ง `DATABASE_URL` ระบบจะทำงานใน **โหมดสาธิต** ใช้ข้อมูลตัวอย่าง ม.ค.–ส.ค. 2569 ในหน่วยความจำ
+- `AUTH_DEMO_LOGIN="true"` จะแสดงปุ่มเข้าสู่ระบบด้วยบัญชีสาธิต (Staff / Manager / CFO / Admin) — ใช้ได้เฉพาะ dev
+- ตั้งค่า `AZURE_AD_*` เพื่อเปิด Microsoft SSO, `ANTHROPIC_API_KEY` เพื่อใช้ AI Agent เต็มรูปแบบ
+- เชื่อม Azure SQL: ตั้ง `DATABASE_URL` แล้วรัน `npx prisma migrate dev`
+
 ## เอกสาร
 
 | ไฟล์ | รายละเอียด |
